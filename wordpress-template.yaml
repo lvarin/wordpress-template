@@ -1,0 +1,214 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+labels:
+  app: wordpress
+  template: wordpress
+message: |-
+  Wordpress has been scheduled for creation in your project, and should be soon available at: https://${NAME}.${APPLICATION_DOMAIN_SUFFIX}
+  * User: ${USER}
+  * Password: ${PASSWORD}
+metadata:
+  annotations:
+    description: This template deploys a Wordpress.
+    iconClass: icon-wordpress
+    openshift.io/display-name: Wordpress
+    openshift.io/documentation-url: https://github.com/CSCfi/wordpress-template
+    openshift.io/support-url: https://www.csc.fi/contact-info
+    openshift.io/long-description:
+    openshift.io/provider-display-name: CSC
+    tags: wordpress
+    template.openshift.io/bindable: "false"
+  name: wordpress
+objects:
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    creationTimestamp: null
+    labels:
+      io.kompose.service: wordpress-mariadb-data
+    name: wordpress-mariadb-data
+  spec:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: ${MARIADB_STORAGE}
+  status: {}
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    labels:
+      io.kompose.service: mariadb
+    name: mariadb
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        io.kompose.service: mariadb
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          io.kompose.service: mariadb
+      spec:
+        containers:
+          - env:
+              - name: ALLOW_EMPTY_PASSWORD
+                value: "yes"
+              - name: MARIADB_DATABASE
+                value: bitnami_wordpress
+              - name: MARIADB_USER
+                value: bn_wordpress
+            image: docker.io/bitnami/mariadb:10.6
+            name: mariadb
+            resources: {}
+            volumeMounts:
+              - mountPath: /bitnami/mariadb
+                name: wordpress-mariadb-data
+        restartPolicy: Always
+        volumes:
+          - name: wordpress-mariadb-data
+            persistentVolumeClaim:
+              claimName: wordpress-mariadb-data
+  status: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: mariadb
+  spec:
+    ports:
+      - name: "3306"
+        port: 3306
+        targetPort: 3306
+    selector:
+      io.kompose.service: mariadb
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    creationTimestamp: null
+    labels:
+      io.kompose.service: wordpress-wordpress-data
+    name: wordpress-wordpress-data
+  spec:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: ${WORDPRESS_STORAGE}
+  status: {}
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    labels:
+      io.kompose.service: wordpress
+    name: wordpress
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        io.kompose.service: wordpress
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          io.kompose.service: wordpress
+      spec:
+        containers:
+          - env:
+              - name: ALLOW_EMPTY_PASSWORD
+                value: "yes"
+              - name: WORDPRESS_DATABASE_HOST
+                value: mariadb
+              - name: WORDPRESS_DATABASE_NAME
+                value: bitnami_wordpress
+              - name: WORDPRESS_DATABASE_PORT_NUMBER
+                value: "3306"
+              - name: WORDPRESS_DATABASE_USER
+                value: bn_wordpress
+              - name: WORDPRESS_USERNAME
+                value: ${WORDPRESS_USERNAME}
+              - name: WORDPRESS_PASSWORD
+                value: ${WORDPRESS_PASSWORD}
+            image: docker.io/bitnami/wordpress:6
+            name: wordpress
+            ports:
+              - containerPort: 8080
+              - containerPort: 8443
+            resources: {}
+            volumeMounts:
+              - mountPath: /bitnami/wordpress
+                name: wordpress-wordpress-data
+        restartPolicy: Always
+        volumes:
+          - name: wordpress-wordpress-data
+            persistentVolumeClaim:
+              claimName: wordpress-wordpress-data
+  status: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      io.kompose.service: wordpress
+    name: wordpress
+  spec:
+    ports:
+      - name: "80"
+        port: 80
+        targetPort: 8080
+      - name: "443"
+        port: 443
+        targetPort: 8443
+    selector:
+      io.kompose.service: wordpress
+  status:
+    loadBalancer: {}
+- apiVersion: route.openshift.io/v1
+  kind: Route
+  metadata:
+    name: wordpress
+  spec:
+    host: ${NAME}.${APPLICATION_DOMAIN_SUFFIX} 
+    port:
+      targetPort: 8080
+    tls:
+      insecureEdgeTerminationPolicy: Redirect
+      termination: edge
+    to:
+      kind: Service
+      name: wordpress
+      weight: 100
+    wildcardPolicy: None
+  status: {}
+parameters:
+- description: Unique identifier for your application. Recommended value - your username
+  displayName: Application Name
+  name: NAME
+  required: true
+- description: The exposed hostname suffix that will be used to create routes for app
+  displayName: Application Hostname Suffix
+  name: APPLICATION_DOMAIN_SUFFIX
+  required: true
+  value: 2.rahtiapp.fi
+- description: The username to login as as administrator
+  display: Wordpress username
+  name: WORDPRESS_USERNAME
+  required: true
+  value: wordpress
+- description: The password to login as as administrator
+  display: Wordpress password
+  name: WORDPRESS_PASSWORD
+  required: true
+  generate: expression
+  from: "[a-zA-Z0-9]{12}"
+- description: Database storage
+  name: MARIADB_STORAGE
+  required: true
+  value: 100Mi
+- description: Wordpress storage
+  name: WORDPRESS_STORAGE
+  required: true
+  value: 100Mi
