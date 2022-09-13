@@ -2,7 +2,7 @@
 
 Run wordpress on the Red Hat OpenShift platform. This package is based on [bitnami images](https://hub.docker.com/r/bitnami/wordpress).
 
-## How to use this template
+## How to deploy this template
 
 Install the template by downloading the [wordpress-template.yaml](./wordpress-template.yaml) file and import it to your OpenShift project via
 command line. Download the `oc` client. Then:
