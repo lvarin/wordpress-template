@@ -5,7 +5,7 @@ Run wordpress on the Red Hat OpenShift platform. This package is based on [bitna
 ## How to deploy this template
 
 Install the template by downloading the [wordpress-template.yaml](./wordpress-template.yaml) file and import it to your OpenShift project via
-command line. Download the `oc` client. Then:
+command line. Download the `oc` client [here](https://docs.openshift.com/container-platform/4.7/cli_reference/openshift_cli/getting-started-cli.html). Then:
 
 ```sh
 oc login "openshift-address" --token="<TOKEN>"
